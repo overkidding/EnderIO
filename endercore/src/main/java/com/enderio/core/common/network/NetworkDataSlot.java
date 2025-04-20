@@ -6,7 +6,6 @@ import com.mojang.serialization.Codec;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -34,7 +33,6 @@ public final class NetworkDataSlot<T> {
     private final Supplier<T> getter;
     private final Consumer<T> setter;
     private int lastHash;
-    private T lastValue;
 
     public static CodecType<String> STRING = new CodecType<>(Codec.STRING, ByteBufCodecs.STRING_UTF8.cast());
     public static CodecType<Boolean> BOOL = new CodecType<>(Codec.BOOL, ByteBufCodecs.BOOL.cast());
@@ -60,11 +58,7 @@ public final class NetworkDataSlot<T> {
         }
 
         T value = getter.get();
-        if(value instanceof List<?> list){
-            lastValue = value;
-        }else {
-            lastHash = type.hash(value);
-        }
+        lastHash = type.hash(value);
         return type.save(lookupProvider, value);
     }
 
@@ -74,11 +68,7 @@ public final class NetworkDataSlot<T> {
 
     public void write(RegistryFriendlyByteBuf buf) {
         T value = getter.get();
-        if(value instanceof List<?>) {
-            lastValue = value;
-        }else {
-            lastHash = type.hash(value);
-        }
+        lastHash = type.hash(value);
         type.write(buf, value);
     }
 
@@ -92,35 +82,8 @@ public final class NetworkDataSlot<T> {
 
     public boolean doesNeedUpdate() {
         T value = getter.get();
-
-        // Fast path: reference is the same
-        if (value == lastValue) return false;
-
-        // Special case for lists
-        if (value instanceof List<?> list) {
-            if (lastValue instanceof List<?> lastList && list.size() == lastList.size()) {
-                boolean fastEquals = true;
-                for (int i = 0; i < Math.min(10, list.size()); i++) {
-                    if (!Objects.equals(list.get(i), lastList.get(i))) {
-                        fastEquals = false;
-                        break;
-                    }
-                }
-                if (fastEquals) {
-                    return false; // assume unchanged
-                }
-            }
-        }
-
-        // Fall back to hash
         int hash = type.hash(value);
-        boolean changed = hash != lastHash;
-
-        // Cache last known state
-        lastHash = hash;
-        lastValue = value;
-
-        return changed;
+        return lastHash != hash;
     }
 
     // This is designed to allow custom network data slot behaviours.
@@ -186,7 +149,7 @@ public final class NetworkDataSlot<T> {
 
         public static <T> CodecType<List<T>> createList(Codec<T> itemCodec,
                 StreamCodec<RegistryFriendlyByteBuf, T> itemStreamCodec) {
-            return new CodecType<>(itemCodec.listOf(), itemStreamCodec.apply(ByteBufCodecs.list()), Object::hashCode);
+            return new CodecType<>(itemCodec.listOf(), itemStreamCodec.apply(ByteBufCodecs.list()));
         }
 
         public static <T, U> CodecType<Map<T, U>> createMap(Codec<T> keyCodec, Codec<U> valueCodec,
@@ -215,9 +178,5 @@ public final class NetworkDataSlot<T> {
         public T read(RegistryFriendlyByteBuf buf, Supplier<T> currentValueSupplier) {
             return streamCodec.decode(buf);
         }
-    }
-
-    public T get() {
-        return getter.get();
     }
 }

@@ -42,6 +42,8 @@ public class CapacitorBankBlockEntity extends LegacyPoweredMachineBlockEntity im
 
     private final MultiEnergyNode node;
 
+    private boolean displayWasUpdated = false;
+
     private long addedEnergy = 0;
     private long removedEnergy = 0;
     public static final int AVERAGE_IO_OVER_X_TICKS = 10;
@@ -100,9 +102,10 @@ public class CapacitorBankBlockEntity extends LegacyPoweredMachineBlockEntity im
 
     @Override
     public void sync() {
-        boolean thereIsAtleastADisplayMode = false;
-        for (DisplayMode mode : displayModes.values()) {
-            if (mode != DisplayMode.NONE) {
+        boolean thereIsAtleastADisplayMode = displayWasUpdated;
+        for (Direction direction : new Direction[] { Direction.NORTH, Direction.EAST, Direction.SOUTH,
+            Direction.WEST }) {
+            if (getDisplayMode(direction) != DisplayMode.NONE) {
                 thereIsAtleastADisplayMode = true;
                 break;
             }
@@ -110,6 +113,10 @@ public class CapacitorBankBlockEntity extends LegacyPoweredMachineBlockEntity im
 
         if(thereIsAtleastADisplayMode){
             super.sync();
+        }
+
+        if(displayWasUpdated) {
+            displayWasUpdated = false;
         }
     }
 
@@ -294,6 +301,8 @@ public class CapacitorBankBlockEntity extends LegacyPoweredMachineBlockEntity im
 
         displayModes.put(direction,
                 DisplayMode.values()[(displayModes.get(direction).ordinal() + 1) % DisplayMode.values().length]);
+
+        displayWasUpdated = true;
         return true;
     }
 

@@ -111,9 +111,9 @@ public class CapacitorBankBlockEntity extends LegacyPoweredMachineBlockEntity im
             }
         }
 
-        if(thereIsAtleastADisplayMode){
+        //if(thereIsAtleastADisplayMode){
             super.sync();
-        }
+        //}
 
         if(displayWasUpdated) {
             displayWasUpdated = false;

@@ -3,15 +3,8 @@ package com.enderio.core.common.blockentity;
 import com.enderio.core.common.network.ClientboundDataSlotChange;
 import com.enderio.core.common.network.NetworkDataSlot;
 import com.enderio.core.common.network.ServerboundCDataSlotUpdate;
+import com.mojang.logging.LogUtils;
 import io.netty.buffer.Unpooled;
-import java.util.ArrayList;
-import java.util.EnumMap;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.concurrent.CopyOnWriteArrayList;
-
 import me.liliandev.ensure.ensures.EnsureSide;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -32,11 +25,26 @@ import net.neoforged.neoforge.capabilities.BlockCapabilityCache;
 import net.neoforged.neoforge.network.PacketDistributor;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.ArrayList;
+import java.util.EnumMap;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Semaphore;
+
 /**
  * Base block entity class for EnderIO.
  * Handles data slot syncing and capability providers.
  */
 public class EnderBlockEntity extends BlockEntity {
+
+    private static final ExecutorService TICKING_EXECUTOR = Executors.newFixedThreadPool(
+        Math.max(4, Runtime.getRuntime().availableProcessors())
+    );
 
     public static final String DATA = "Data";
     public static final String INDEX = "Index";
@@ -213,15 +221,34 @@ public class EnderBlockEntity extends BlockEntity {
     /**
      * Sync the BlockEntity to all tracking players. Don't call this if you don't know what you do
      */
+
+    private static final Semaphore SYNC_LOCK = new Semaphore(50);
+
     @Deprecated(forRemoval = true, since = "7.1")
     @EnsureSide(EnsureSide.Side.SERVER)
     public void sync() {
-        var syncData = createBufferSlotUpdate();
-        if (syncData != null && level instanceof ServerLevel serverLevel) {
-            setChanged();
-            PacketDistributor.sendToPlayersTrackingChunk(serverLevel, new ChunkPos(getBlockPos()),
-                    new ServerboundCDataSlotUpdate(getBlockPos(), syncData));
-        }
+        if (level == null || !(level instanceof ServerLevel serverLevel)) return;
+        if (!SYNC_LOCK.tryAcquire()) return;
+
+        BlockPos pos = getBlockPos();
+        ChunkPos chunkPos = new ChunkPos(pos);
+
+        TICKING_EXECUTOR.submit(() -> {
+            try {
+                byte[] syncData = createBufferSlotUpdate();
+                if (syncData != null) {
+                    PacketDistributor.sendToPlayersTrackingChunk(
+                        serverLevel,
+                        chunkPos,
+                        new ServerboundCDataSlotUpdate(pos, syncData)
+                    );
+                }
+            } catch (Exception e) {
+                LogUtils.getLogger().error("Failed to sync block entity at {}", pos, e);
+            } finally {
+                SYNC_LOCK.release();
+            }
+        });
     }
 
     @Deprecated(forRemoval = true, since = "7.1")

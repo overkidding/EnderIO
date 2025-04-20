@@ -42,8 +42,6 @@ public class CapacitorBankBlockEntity extends LegacyPoweredMachineBlockEntity im
 
     private final MultiEnergyNode node;
 
-    private boolean displayWasUpdated = false;
-
     private long addedEnergy = 0;
     private long removedEnergy = 0;
     public static final int AVERAGE_IO_OVER_X_TICKS = 10;
@@ -54,7 +52,7 @@ public class CapacitorBankBlockEntity extends LegacyPoweredMachineBlockEntity im
     private final Map<Direction, DisplayMode> displayModes = Util.make(() -> {
         Map<Direction, DisplayMode> map = new EnumMap<>(Direction.class);
         for (Direction direction : new Direction[] { Direction.NORTH, Direction.EAST, Direction.SOUTH,
-                Direction.WEST }) {
+            Direction.WEST }) {
             map.put(direction, DisplayMode.NONE);
         }
 
@@ -62,19 +60,19 @@ public class CapacitorBankBlockEntity extends LegacyPoweredMachineBlockEntity im
     });
 
     public static final NetworkDataSlot.CodecType<Map<Direction, DisplayMode>> DISPLAY_MODE_MAP_DATA_SLOT_TYPE = NetworkDataSlot.CodecType
-            .createMap(Direction.CODEC, DisplayMode.CODEC, Direction.STREAM_CODEC.cast(),
-                    DisplayMode.STREAM_CODEC.cast());
+        .createMap(Direction.CODEC, DisplayMode.CODEC, Direction.STREAM_CODEC.cast(),
+            DisplayMode.STREAM_CODEC.cast());
 
     public static final NetworkDataSlot.CodecType<List<BlockPos>> POSITION_LIST_DATA_SLOT_TYPE = NetworkDataSlot.CodecType
-            .createList(BlockPos.CODEC, BlockPos.STREAM_CODEC.cast());
+        .createList(BlockPos.CODEC, BlockPos.STREAM_CODEC.cast());
 
     public CapacitorBankBlockEntity(BlockPos worldPosition, BlockState blockState, CapacitorTier tier) {
         super(EnergyIOMode.Both, new FixedScalable(tier::getStorageCapacity),
-                new FixedScalable(tier::getStorageCapacity), MachineBlockEntities.CAPACITOR_BANKS.get(tier).get(),
-                worldPosition, blockState);
+            new FixedScalable(tier::getStorageCapacity), MachineBlockEntities.CAPACITOR_BANKS.get(tier).get(),
+            worldPosition, blockState);
         this.tier = tier;
         this.node = new MultiEnergyNode(() -> energyStorage,
-                () -> (MultiEnergyStorageWrapper) getExposedEnergyStorage(), worldPosition);
+            () -> (MultiEnergyStorageWrapper) getExposedEnergyStorage(), worldPosition);
 
         addDataSlot(NetworkDataSlot.LONG.create(() -> addedEnergy, data -> addedEnergy = data));
         addDataSlot(NetworkDataSlot.LONG.create(() -> removedEnergy, data -> removedEnergy = data));
@@ -85,22 +83,14 @@ public class CapacitorBankBlockEntity extends LegacyPoweredMachineBlockEntity im
     @Override
     public NetworkDataSlot<?> createEnergyDataSlot() {
         return LargeEnergyData.DATA_SLOT_TYPE.create(
-                () -> LargeEnergyData.from((ILargeMachineEnergyStorage) getExposedEnergyStorage()),
-                energyData -> clientEnergyStorage = energyData.toImmutableStorage());
+            () -> LargeEnergyData.from((ILargeMachineEnergyStorage) getExposedEnergyStorage()),
+            energyData -> clientEnergyStorage = energyData.toImmutableStorage());
     }
 
     @Nullable
     @Override
     public AbstractContainerMenu createMenu(int pContainerId, Inventory pPlayerInventory, Player pPlayer) {
-        boolean thereIsAtleastADisplayMode = false;
-        for (Direction direction : new Direction[] { Direction.NORTH, Direction.EAST, Direction.SOUTH,
-            Direction.WEST }) {
-            if (getDisplayMode(direction) != DisplayMode.NONE) {
-                thereIsAtleastADisplayMode = true;
-                break;
-            }
-        }
-        return thereIsAtleastADisplayMode ? new CapacitorBankMenu(pContainerId, this, pPlayerInventory) : null;
+        return new CapacitorBankMenu(pContainerId, this, pPlayerInventory);
     }
 
     @Override
@@ -109,30 +99,10 @@ public class CapacitorBankBlockEntity extends LegacyPoweredMachineBlockEntity im
     }
 
     @Override
-    public void sync() {
-        boolean thereIsAtleastADisplayMode = displayWasUpdated;
-        for (Direction direction : new Direction[] { Direction.NORTH, Direction.EAST, Direction.SOUTH,
-            Direction.WEST }) {
-            if (getDisplayMode(direction) != DisplayMode.NONE) {
-                thereIsAtleastADisplayMode = true;
-                break;
-            }
-        }
-
-        if(thereIsAtleastADisplayMode){
-            super.sync();
-        }
-
-        if(displayWasUpdated) {
-            displayWasUpdated = false;
-        }
-    }
-
-    @Override
     public void serverTick() {
         super.serverTick();
         if (level.getGameTime() % AVERAGE_IO_OVER_X_TICKS == 0
-                && node.getWrapper().get().getLastResetTime() != level.getGameTime()) {
+            && node.getWrapper().get().getLastResetTime() != level.getGameTime()) {
             if (node.getGraph() != null) {
                 addedEnergy = 0;
                 removedEnergy = 0;
@@ -149,7 +119,7 @@ public class CapacitorBankBlockEntity extends LegacyPoweredMachineBlockEntity im
                 // calculation, because each node is reset at once
                 for (GraphObject<Mergeable.Dummy> object : nodes) {
                     if (object instanceof MultiEnergyNode graphNode
-                            && level.getBlockEntity(graphNode.pos) instanceof CapacitorBankBlockEntity capacitorBank) {
+                        && level.getBlockEntity(graphNode.pos) instanceof CapacitorBankBlockEntity capacitorBank) {
                         capacitorBank.addedEnergy = addedEnergy;
                         capacitorBank.removedEnergy = removedEnergy;
                     }
@@ -158,7 +128,7 @@ public class CapacitorBankBlockEntity extends LegacyPoweredMachineBlockEntity im
         }
 
         if (level.getGameTime() % 200 == hashCode() % 200 && node.getGraph() != null
-                && List.copyOf(node.getGraph().getObjects()).indexOf(node) == 0) {
+            && List.copyOf(node.getGraph().getObjects()).indexOf(node) == 0) {
             long cumulativeEnergy = 0;
             for (GraphObject<Mergeable.Dummy> object : node.getGraph().getObjects()) {
                 if (object instanceof MultiEnergyNode otherNode) {
@@ -171,7 +141,7 @@ public class CapacitorBankBlockEntity extends LegacyPoweredMachineBlockEntity im
             for (GraphObject<Mergeable.Dummy> object : node.getGraph().getObjects()) {
                 if (object instanceof MultiEnergyNode otherNode) {
                     ((MachineEnergyStorage) (otherNode.getInternal().get())).setEnergyStored(
-                            Math.min(energyPerNode, (int) Math.min(cumulativeEnergy, Integer.MAX_VALUE)));
+                        Math.min(energyPerNode, (int) Math.min(cumulativeEnergy, Integer.MAX_VALUE)));
                     cumulativeEnergy -= energyPerNode;
                 }
             }
@@ -263,7 +233,7 @@ public class CapacitorBankBlockEntity extends LegacyPoweredMachineBlockEntity im
 
         for (Direction direction : Direction.values()) {
             if (level.getBlockEntity(worldPosition.relative(direction)) instanceof CapacitorBankBlockEntity capacitor
-                    && capacitor.tier == tier) {
+                && capacitor.tier == tier) {
                 Graph.connect(node, capacitor.node);
             }
         }
@@ -299,7 +269,7 @@ public class CapacitorBankBlockEntity extends LegacyPoweredMachineBlockEntity im
         }
 
         if (player.getMainHandItem().getItem() instanceof BlockItem
-                || player.getOffhandItem().getItem() instanceof BlockItem) {
+            || player.getOffhandItem().getItem() instanceof BlockItem) {
             return false;
         }
 
@@ -308,9 +278,7 @@ public class CapacitorBankBlockEntity extends LegacyPoweredMachineBlockEntity im
         }
 
         displayModes.put(direction,
-                DisplayMode.values()[(displayModes.get(direction).ordinal() + 1) % DisplayMode.values().length]);
-
-        displayWasUpdated = true;
+            DisplayMode.values()[(displayModes.get(direction).ordinal() + 1) % DisplayMode.values().length]);
         return true;
     }
 
@@ -324,7 +292,7 @@ public class CapacitorBankBlockEntity extends LegacyPoweredMachineBlockEntity im
 
     public DisplayMode getDisplayMode(Direction direction) {
         if (getLevel() == null || !Block.shouldRenderFace(getBlockState(), getLevel(), worldPosition, direction,
-                worldPosition.relative(direction))) {
+            worldPosition.relative(direction))) {
             return DisplayMode.NONE;
         }
 

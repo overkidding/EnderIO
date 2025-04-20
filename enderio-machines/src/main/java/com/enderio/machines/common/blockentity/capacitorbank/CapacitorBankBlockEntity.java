@@ -92,7 +92,15 @@ public class CapacitorBankBlockEntity extends LegacyPoweredMachineBlockEntity im
     @Nullable
     @Override
     public AbstractContainerMenu createMenu(int pContainerId, Inventory pPlayerInventory, Player pPlayer) {
-        return new CapacitorBankMenu(pContainerId, this, pPlayerInventory);
+        boolean thereIsAtleastADisplayMode = false;
+        for (Direction direction : new Direction[] { Direction.NORTH, Direction.EAST, Direction.SOUTH,
+            Direction.WEST }) {
+            if (getDisplayMode(direction) != DisplayMode.NONE) {
+                thereIsAtleastADisplayMode = true;
+                break;
+            }
+        }
+        return thereIsAtleastADisplayMode ? new CapacitorBankMenu(pContainerId, this, pPlayerInventory) : null;
     }
 
     @Override
@@ -111,9 +119,9 @@ public class CapacitorBankBlockEntity extends LegacyPoweredMachineBlockEntity im
             }
         }
 
-        //if(thereIsAtleastADisplayMode){
+        if(thereIsAtleastADisplayMode){
             super.sync();
-        //}
+        }
 
         if(displayWasUpdated) {
             displayWasUpdated = false;
